@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REA Investigation Lab · 数据实验分析仪表盘</title>
+<style>
+  :root{
+    --bg:#F5F1E8; --card:#FFFFFF; --line:#E8E1D2; --text:#2C2A24; --muted:#8B8574;
+    --blue:#4C8BF5; --green:#34B37E; --amber:#F0A020; --violet:#8B5CF6;
+    --teal:#14B8A6; --rose:#EF6C7B; --slate:#64748B; --orange:#E2711D;
+    --radius:14px; --shadow:0 2px 10px rgba(60,50,30,.07);
+    font-size:15px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); min-height:100vh;
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:18px 22px 26px;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace}
+  button{font-family:inherit}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#4C8BF5,#8B5CF6);color:#fff;font-weight:800;font-size:15px;letter-spacing:.5px;
+    box-shadow:var(--shadow)}
+  .titles h1{font-size:1.32rem;font-weight:800;letter-spacing:.2px}
+  .titles p{color:var(--muted);font-size:.82rem;margin-top:2px}
+  .hd-actions{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}
+  .hd-actions button{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:9px 15px;font-size:.86rem;font-weight:600;color:var(--text);cursor:pointer;box-shadow:var(--shadow)}
+  .hd-actions button:hover{border-color:#C9C0AA}
+  .hd-actions button.primary{background:#2C2A24;color:#fff;border-color:#2C2A24}
+  .badge{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+    border-radius:99px;padding:7px 13px;font-size:.78rem;color:var(--muted);box-shadow:var(--shadow)}
+  .dot{width:7px;height:7px;border-radius:99px;background:var(--green)}
+  .dot.warn{background:var(--amber)}
+
+  /* ---------- steps ---------- */
+  .steps{display:flex;align-items:center;gap:0;margin:16px 0 14px;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);padding:12px 18px;box-shadow:var(--shadow);flex-wrap:wrap}
+  .step{display:flex;align-items:center;gap:9px;padding:4px 14px;position:relative}
+  .step .num{width:26px;height:26px;border-radius:99px;border:1.6px solid var(--line);display:flex;align-items:center;
+    justify-content:center;font-size:.78rem;font-weight:700;color:var(--muted);background:#FAF7EF}
+  .step .name{font-size:.88rem;color:var(--muted);font-weight:600}
+  .step.active .num{background:#2C2A24;border-color:#2C2A24;color:#fff}
+  .step.active .name{color:var(--text)}
+  .step.done .num{background:var(--green);border-color:var(--green);color:#fff}
+  .step .bar{width:90px;height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin-left:6px}
+  .step .bar i{display:block;height:100%;background:var(--green);width:0%;transition:width .6s}
+  .step .pct{font-size:.72rem;color:var(--muted);width:34px}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .stat .lab{display:flex;align-items:center;gap:7px;font-size:.78rem;color:var(--muted);font-weight:600}
+  .stat .lab i{width:8px;height:8px;border-radius:99px;display:inline-block}
+  .stat .val{font-size:1.55rem;font-weight:800;margin-top:6px;font-family:ui-monospace,Consolas,monospace}
+  .stat .val small{font-size:.8rem;color:var(--muted);font-weight:600;margin-left:3px}
+  .stat .trd{font-size:.74rem;margin-top:3px;font-weight:700}
+  .up{color:#1E8E5A}.down{color:#D14D5D}
+
+  /* ---------- main ---------- */
+  .main{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:12px;align-items:stretch}
+  @media (max-width:980px){.main{grid-template-columns:1fr}}
+  .side{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:640px){.side{grid-template-columns:1fr}}
+  .fcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;
+    box-shadow:var(--shadow);border-top:3px solid var(--ac,var(--blue));position:relative;overflow:hidden}
+  .fcard .t{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--muted);font-weight:700}
+  .fcard .t .ic{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+    background:var(--ac-bg,#EAF1FD);font-size:.72rem;color:var(--ac,var(--blue));font-weight:800}
+  .fcard .v{font-size:1.28rem;font-weight:800;margin-top:7px;font-family:ui-monospace,Consolas,monospace}
+  .fcard .v small{font-size:.72rem;color:var(--muted);font-weight:600}
+  .fcard .mini{display:flex;align-items:flex-end;gap:2.5px;height:26px;margin-top:8px}
+  .fcard .mini i{flex:1;background:var(--ac,#4C8BF5);opacity:.32;border-radius:2px;min-height:3px;transition:height .5s}
+  .fcard .sub{font-size:.72rem;color:var(--muted);margin-top:7px}
+
+  .gauge-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}
+  .gauge-card h3{font-size:.85rem;color:var(--muted);font-weight:700;letter-spacing:1px}
+  .ring{position:relative;width:250px;height:250px;margin-top:10px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .track{stroke:#EDE7D8}
+  .ring .arc{stroke:url(#g1);transition:stroke-dashoffset .9s ease}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .center .rlogo{width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,#4C8BF5,#8B5CF6);
+    color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:1.05rem;
+    box-shadow:0 4px 14px rgba(76,139,245,.35)}
+  .center .score{font-size:2.35rem;font-weight:800;margin-top:8px;font-family:ui-monospace,Consolas,monospace}
+  .center .score small{font-size:.9rem;color:var(--muted)}
+  .center .cap{font-size:.74rem;color:var(--muted);margin-top:2px;letter-spacing:2px}
+  .gauge-foot{display:flex;gap:20px;margin-top:10px;font-size:.74rem;color:var(--muted)}
+  .gauge-foot b{color:var(--text)}
+
+  /* ---------- bottom panels ---------- */
+  .bottom{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-top:12px}
+  @media (max-width:900px){.bottom{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .panel .ph h4{font-size:.88rem;font-weight:800}
+  .panel .ph span{font-size:.74rem;color:var(--muted)}
+  .logs{height:216px;overflow-y:auto;padding:6px 0}
+  .logs::-webkit-scrollbar{width:5px}
+  .logs::-webkit-scrollbar-thumb{background:#DDD5C2;border-radius:99px}
+  .log{display:flex;gap:9px;align-items:baseline;padding:5px 16px;font-size:.78rem;animation:fadeIn .4s}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1}}
+  .log time{color:var(--muted);flex-shrink:0;font-family:ui-monospace,Consolas,monospace;font-size:.72rem}
+  .lv{flex-shrink:0;font-size:.66rem;font-weight:800;border-radius:5px;padding:1.5px 7px;letter-spacing:.5px}
+  .lv.info{background:#E7F0FE;color:#2F6FD0}
+  .lv.ok{background:#E3F6EC;color:#1E8E5A}
+  .lv.warn{background:#FDF2DC;color:#B97A0E}
+  .lv.err{background:#FDE8EA;color:#C43A4B}
+  .log .msg{color:#4A473D;line-height:1.45}
+
+  .heat-wrap{padding:14px 16px}
+  .heat-head{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:7px}
+  .heat{display:grid;grid-template-columns:repeat(24,1fr);gap:4px}
+  .heat i{aspect-ratio:1;border-radius:3px;background:#EFEADA;transition:background .5s}
+  .heat-days{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;margin-bottom:5px}
+  .heat-days b{font-size:.72rem;color:var(--muted);font-weight:700;text-align:right}
+  .legend{display:flex;gap:5px;align-items:center;margin-top:10px;font-size:.7rem;color:var(--muted)}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:-1px}
+
+  footer{margin-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+    color:var(--muted);font-size:.76rem}
+  footer a{color:var(--text);font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">REA</div>
+  <div class="titles">
+    <h1>REA Investigation Lab</h1>
+    <p>REsearch &amp; Analysis Lab · 数据实验分析仪表盘</p>
+  </div>
+  <div class="badge"><span class="dot" id="runDot"></span><span id="runText">模拟引擎运行中</span></div>
+  <div class="hd-actions">
+    <button id="btnPause" class="primary">⏸ 暂停</button>
+    <button id="btnRefresh">⟳ 刷新</button>
+    <button id="btnExport">⬇ 导出日志</button>
+  </div>
+</header>
+
+<div class="steps" id="steps">
+  <div class="step done"><span class="num">✓</span><span class="name">01 采集</span><span class="pct">100%</span></div>
+  <div class="step done"><span class="num">✓</span><span class="name">02 清洗</span><span class="pct">100%</span></div>
+  <div class="step active"><span class="num">03</span><span class="name">03 分析</span><span class="bar"><i id="s3"></i></span><span class="pct" id="p3">64%</span></div>
+  <div class="step"><span class="num">04</span><span class="name">04 建模</span><span class="pct">—</span></div>
+  <div class="step"><span class="num">05</span><span class="name">05 报告</span><span class="pct">—</span></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="lab"><i style="background:var(--blue)"></i>实验任务</div><div class="val" id="st1">128</div><div class="trd up" id="tr1">▲ +4 今日</div></div>
+  <div class="stat"><div class="lab"><i style="background:var(--green)"></i>完成率</div><div class="val" id="st2">87.4<small>%</small></div><div class="trd up" id="tr2">▲ +1.2%</div></div>
+  <div class="stat"><div class="lab"><i style="background:var(--rose)"></i>异常事件</div><div class="val" id="st3">3</div><div class="trd down" id="tr3">▼ -2 较昨日</div></div>
+  <div class="stat"><div class="lab"><i style="background:var(--violet)"></i>数据吞吐</div><div class="val" id="st4">1,284<small>条/分</small></div><div class="trd up" id="tr4">▲ +6.4%</div></div>
+  <div class="stat"><div class="lab"><i style="background:var(--teal)"></i>在线节点</div><div class="val" id="st5">8<small>/10</small></div><div class="trd up" id="tr5">● 全部健康</div></div>
+</div>
+
+<div class="main">
+  <div class="side" id="sideL"></div>
+
+  <div class="gauge-card">
+    <h3>SYSTEM INTEGRITY</h3>
+    <div class="ring">
+      <svg width="250" height="250" viewBox="0 0 250 250">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#4C8BF5"/><stop offset="100%" stop-color="#34B37E"/>
+          </linearGradient>
+        </defs>
+        <circle class="track" cx="125" cy="125" r="106" fill="none" stroke-width="17"/>
+        <circle class="arc" id="arc" cx="125" cy="125" r="106" fill="none" stroke-width="17"
+          stroke-linecap="round" stroke-dasharray="666" stroke-dashoffset="666"/>
+      </svg>
+      <div class="center">
+        <div class="rlogo">REA</div>
+        <div class="score"><span id="score">92.4</span><small> / 100</small></div>
+        <div class="cap">综合运行指数</div>
+      </div>
+    </div>
+    <div class="gauge-foot">
+      <span>运行时长 <b id="up1">368h</b></span>
+      <span>检查点 <b id="up2">12,047</b></span>
+      <span>版本 <b>v2.4.1</b></span>
+    </div>
+  </div>
+
+  <div class="side" id="sideR"></div>
+</div>
+
+<div class="bottom">
+  <div class="panel">
+    <div class="ph"><h4>📜 运行日志</h4><span id="logCount">共 0 条</span></div>
+    <div class="logs" id="logs"></div>
+  </div>
+  <div class="panel">
+    <div class="ph"><h4>🗓 任务密度热力图</h4><span>近 7 天 × 24 小时</span></div>
+    <div class="heat-wrap">
+      <div class="heat-head"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+      <div id="heatRows"></div>
+      <div class="legend">低
+        <i style="background:#EFEADA"></i><i style="background:#DCE9C8"></i><i style="background:#BCDCAB"></i>
+        <i style="background:#8FC98F"></i><i style="background:#5FAE8B"></i><i style="background:#348E77"></i>
+        高</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div>REA Investigation Lab · REsearch &amp; Analysis Lab · 模拟演示数据(可接真实 API)</div>
+  <div class="mono"><a href="https://xuanji.is-a.dev" target="_blank" rel="noopener">xuanji.is-a.dev</a> · self-hosted</div>
+</footer>
+
+<script>
+/* ============ 8 个功能卡片配置(四周悬浮卡) ============ */
+const CARDS = [
+  {t:"数据采集吞吐", u:"条/秒",   ac:"#4C8BF5", bg:"#EAF1FD", ic:"采", v:342,  min:120, max:560, s:8},
+  {t:"清洗管道效率", u:"%",      ac:"#34B37E", bg:"#E3F6EC", ic:"洗", v:96.2, min:88,  max:99.5, s:8, f:1},
+  {t:"模型推理批次", u:"batch",  ac:"#8B5CF6", bg:"#F0EBFD", ic:"模", v:17,   min:4,   max:36,  s:8},
+  {t:"存储占用",     u:"GB",     ac:"#F0A020", bg:"#FDF2DC", ic:"存", v:628,  min:520, max:760, s:8},
+  {t:"告警事件",     u:"条",     ac:"#EF6C7B", bg:"#FDE8EA", ic:"警", v:6,    min:0,   max:14,  s:8},
+  {t:"GPU 集群负载", u:"%",      ac:"#14B8A6", bg:"#E1F5F2", ic:"算", v:72.5, min:40,  max:96,  s:8, f:1},
+  {t:"API 网关 QPS", u:"req/s",  ac:"#64748B", bg:"#EEF1F5", ic:"网", v:86,   min:20,  max:220, s:8},
+  {t:"任务队列深度", u:"待处理", ac:"#E2711D", bg:"#FDF0E3", ic:"队", v:24,   min:3,   max:80,  s:8}
+];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=n=>n>=1000?n.toLocaleString("en-US"):(Math.round(n*10)/10).toString();
+
+function buildCards(){
+  const mk=c=>`<div class="fcard" style="--ac:${c.ac};--ac-bg:${c.bg}">
+    <div class="t"><span>${c.t}</span><span class="ic">${c.ic}</span></div>
+    <div class="v"><span id="cv${c.i}">${fmt(c.v)}</span><small> ${c.u}</small></div>
+    <div class="mini">${Array.from({length:c.s},(_,k)=>`<i style="height:${20+Math.random()*80}%"></i>`).join("")}</div>
+    <div class="sub">采样窗口 · 60s</div></div>`;
+  CARDS.forEach((c,i)=>c.i=i);
+  sideL.innerHTML = CARDS.slice(0,4).map(mk).join("");
+  sideR.innerHTML = CARDS.slice(4).map(mk).join("");
+}
+buildCards();
+
+/* ============ 点阵热力图 ============ */
+const DAYS=["周一","周二","周三","周四","周五","周六","周日"];
+const HUES=["#EFEADA","#DCE9C8","#BCDCAB","#8FC98F","#5FAE8B","#348E77"];
+function heatColor(v){return HUES[clamp(Math.floor(v/15),0,5)];}
+let heat=[]; // 7x24
+function seedHeat(){
+  heat=DAYS.map((_,d)=>Array.from({length:24},(_,h)=>{
+    const base = h>=9&&h<=19 ? 62 : 18;             // 工作时段更热
+    const wk = d>=5 ? 0.45 : 1;                      // 周末更闲
+    return clamp(base*wk + rnd(-22,30), 2, 95);
+  }));
+}
+function renderHeat(){
+  heatRows.innerHTML = heat.map((row,d)=>`
+    <div class="heat-days"><b>${DAYS[d]}</b>
+      <div class="heat">${row.map((v,h)=>`<i id="hm${d}_${h}" style="background:${heatColor(v)}" title="${DAYS[d]} ${String(h).padStart(2,"0")}:00 · 密度 ${Math.round(v)}%"></i>`).join("")}</div>
+    </div>`).join("");
+}
+seedHeat(); renderHeat();
+
+/* ============ 日志流 ============ */
+const LOG_POOL=[
+  ["info","采集管道 batch#{n} 完成 · {k} 条记录写入暂存区"],
+  ["ok","清洗任务 #{n} 通过校验 · 丢弃脏数据 {k} 条"],
+  ["info","推理批次 #{n} 已调度至 GPU-0{m} · 预计 {k}s"],
+  ["warn","节点 node-0{m} 心跳延迟 {k}ms · 超过阈值"],
+  ["info","因子计算模块刷新 · 窗口 {k} 个指标"],
+  ["ok","模拟执行批 #{n} 风控检查通过 · 白名单命中"],
+  ["err","写入失败 · 重试 {k} 次后恢复 · 已记录审计日志"],
+  ["info","DDNS 心跳正常 · 解析记录保持最新"],
+  ["warn","队列深度 {k} · 高于基线 20% · 自动扩容中"],
+  ["ok","日志压缩完成 · 归档 {k} MB"],
+  ["info","API 网关健康检查通过 · 延迟 {k}ms"],
+  ["ok","报告生成器输出实验快照 #{n}"]
+];
+let logN = 1347, logTotal = 0;
+function addLog(){
+  const [lv,tpl] = LOG_POOL[Math.floor(Math.random()*LOG_POOL.length)];
+  const msg = tpl.replace("{n}", 6000+Math.floor(rnd(0,3900)))
+                 .replace("{k}", Math.floor(rnd(8,990)))
+                 .replace("{m}", Math.floor(rnd(1,4)));
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8) + "." + String(now.getMilliseconds()).padStart(3,"0");
+  const row = document.createElement("div");
+  row.className = "log";
+  row.innerHTML = `<time>${ts}</time><span class="lv ${lv}">${lv.toUpperCase()}</span><span class="msg">${msg}</span>`;
+  const box = document.getElementById("logs");
+  box.prepend(row);
+  while (box.children.length > 60) box.removeChild(box.lastChild);
+  logTotal++;
+  document.getElementById("logCount").textContent = "共 " + logTotal + " 条";
+}
+
+/* ============ 主循环(模拟引擎) ============ */
+let score=92.4, step=3, stepPct=64, paused=false, timer=null;
+const CIRC = 2*Math.PI*106; // ring circumference
+
+function tick(){
+  // 中央环形仪表盘
+  score = clamp(score + rnd(-0.8,0.9), 88, 97.5);
+  document.getElementById("score").textContent = score.toFixed(1);
+  document.getElementById("arc").style.strokeDashoffset = CIRC*(1-score/100);
+  // 步骤进度条 03→04→05 循环推进
+  stepPct += rnd(4,11);
+  if (stepPct>=100){
+    document.getElementById("s3") && (document.querySelector(".step.active .num").textContent="✓",
+      document.querySelector(".step.active").classList.replace("active","done"));
+    step = step>=5 ? 3 : step+1; stepPct = rnd(5,20);
+    if (step<=3){ seedHeat(); renderHeat(); }
+  }
+  if (step===3){
+    const act=document.querySelector(".step.active");
+    if(act){ const bar=act.querySelector(".bar i"), pct=act.querySelector(".pct");
+      if(bar) bar.style.width=stepPct.toFixed(0)+"%"; if(pct) pct.textContent=Math.round(stepPct)+"%"; }
+  }
+  // 8 张卡片随机漂移
+  CARDS.forEach(c=>{
+    c.v = clamp(c.v + rnd(-(c.max-c.min)*0.08,(c.max-c.min)*0.08), c.min, c.max);
+    const el=document.getElementById("cv"+c.i); if(el) el.textContent=fmt(c.v);
+  });
+  // 顶部统计漂移
+  document.getElementById("st1").textContent = 128 + Math.floor(rnd(0,6));
+  document.getElementById("st2").innerHTML = clamp(87.4+rnd(-1,1.4),84,93).toFixed(1)+"<small>%</small>";
+  document.getElementById("st3").textContent = Math.max(1,Math.round(3+rnd(-1.6,1.6)));
+  document.getElementById("st4").innerHTML = fmt(Math.round(1284+rnd(-90,110)))+"<small>条/分</small>";
+  // 热力图局部扰动(保持整体结构)
+  const d=Math.floor(rnd(0,7)), h=Math.floor(rnd(0,24));
+  heat[d][h]=clamp(heat[d][h]+rnd(-18,22),2,95);
+  const cell=document.getElementById(`hm${d}_${h}`); if(cell) cell.style.background=heatColor(heat[d][h]);
+  // 日志
+  if (Math.random()<0.75) addLog();
+}
+
+function start(){ if(timer) return; timer=setInterval(tick,2000); }
+function stop(){ clearInterval(timer); timer=null; }
+
+document.getElementById("btnPause").onclick = function(){
+  paused=!paused;
+  if(paused){ stop(); this.textContent="▶ 运行"; this.classList.remove("primary");
+    document.getElementById("runText").textContent="引擎已暂停"; document.getElementById("runDot").classList.add("warn"); }
+  else { start(); this.textContent="⏸ 暂停"; this.classList.add("primary");
+    document.getElementById("runText").textContent="模拟引擎运行中"; document.getElementById("runDot").classList.remove("warn"); }
+};
+document.getElementById("btnRefresh").onclick = ()=>{ seedHeat(); renderHeat(); score=92.4; step=3; stepPct=64; tick(); };
+document.getElementById("btnExport").onclick = ()=>{
+  const rows=Array.from(document.querySelectorAll("#logs .log")).map(r=>r.innerText.replace(/\s+/g," "));
+  const blob=new Blob([rows.join("\n")],{type:"text/plain"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="rea-lab-logs.txt"; a.click();
+};
+
+/* 初始渲染 */
+document.getElementById("arc").style.strokeDashoffset = CIRC*(1-score/100);
+for(let i=0;i<8;i++) addLog();
+start();
+</script>
+</body>
+</html>
